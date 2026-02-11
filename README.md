@@ -74,8 +74,10 @@ The server must not be able to determine:
 Runway supports sealed sender semantics, where the sender’s MLS identity is cryptographically hidden from the server.
 
 The protocol does not guarantee network-layer anonymity. Malicious servers may observe source IP addresses unless clients use anonymizing transports (proxies or VPNs).
+
 ### 5.5 Ephemeral Receiver IDs
 All message delivery occurs via ephemeral receiver IDs (RIDs), which are temporary routing identifiers issued by the server and used in place of persistent user addresses. Clients are responsible for requesting and rotating their RIDs, which may expire or change at any time. RIDs act purely as opaque delivery endpoints: the server routes blobs to the appropriate RID without learning the user’s identity, group membership, or conversation type. Authorized peers receive updated RIDs through MLS application messages or pre-shared tokens, ensuring that message content and recipient identity remain cryptographically hidden from the server. By using ephemeral RIDs, the protocol enforces strong privacy and limits the metadata exposure associated with message routing.
+
 ### 5.6 Initial Contact and Contact Tokens
 Establishing initial communication with a user requires explicit sharing of information. A user must obtain the recipient’s MLS KeyPackage and an initial ephemeral receiver ID through a pre-shared token, link, or other out-of-band mechanism. Possession of this token allows the client to construct a valid MLS commit and begin sending messages, but the server does not learn the identity of the participants or the content of the messages. This ensures that first-contact is a deliberate action controlled by the users themselves and prevents unauthorized clients from initiating conversations or learning about the recipient’s ephemeral routing information. No automatic discovery by username is provided, as this would reveal metadata and compromise privacy.
 
