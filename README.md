@@ -70,6 +70,8 @@ The server must not be able to determine:
 ### 5.3 Authentication and Integrity
 - Recipients authenticate senders using MLS signatures. The server cannot forge messages or impersonate senders due to the use of MLS signatures and sealed sender.
 - Sender authenticity must be verified client-side
+
+Requests for receiver ID issuance, rotation, or message retrieval MUST be authenticated by the client via a signature over the request using the private key associated with the client’s registered MLS credential. This authentication authorizes routing capabilities only and does not convey message-level authenticity or group membership.
 ### 5.4 Sender Anonymity Model
 Runway supports sealed sender semantics, where the sender’s MLS identity is cryptographically hidden from the server.
 
@@ -94,6 +96,9 @@ Clients are responsible for managing all state related to MLS groups, including:
 - Message history
 - Group metadata
 - MLS group state
+
+### 7.2 Key Loss
+Loss of an MLS credential private key is unrecoverable. Clients that lose their credential MUST generate a new MLS credential and re-establish communication through explicit reintroduction. The protocol does not provide server-assisted recovery mechanisms, as doing so would require persistent secrets or trusted infrastructure. This behavior is consistent with Runway’s capability-based and client-owned identity model.
 
 ## 8. Metadata considerations
 ### 8.1 Unavoidable Metadata
