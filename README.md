@@ -84,8 +84,10 @@ The protocol does not guarantee network-layer anonymity. Malicious servers may o
 All message delivery occurs via ephemeral receiver IDs (RIDs), which are temporary routing identifiers issued by the server and used in place of persistent user addresses. Clients are responsible for requesting and rotating their RIDs, which may expire or change at any time. RIDs act purely as opaque delivery endpoints: the server routes blobs to the appropriate RID without learning the user’s identity, group membership, or conversation type. Authorized peers receive updated RIDs through MLS application messages or pre-shared tokens, ensuring that message content and recipient identity remain cryptographically hidden from the server. By using ephemeral RIDs, the protocol enforces strong privacy and limits the metadata exposure associated with message routing.
 
 RIDs are merely routing handles the server internally uses, not cryptographic identities. They do not carry any inherent information about the user or their conversations, and their rotation is a key mechanism for maintaining privacy and preventing correlation by the server.
+
+MLS updates, commits, and epochs are independent of RID rotation, clients simply send blobs to the current valid RID of each member.
 ### 5.5.1 RID Issuance and Rotation
-When a client rotates or changes its RID, it must securely notify peers with whom it has established initial contact. This is done through MLS application messages, ensuring that updated RIDs are delivered without revealing routing information to the server or unauthorized parties. Proper RID propagation ensures uninterrupted message delivery while maintaining cryptographic privacy.
+When a client rotates or changes its RID, it must securely notify peers with whom it has established initial contact. This is done through MLS application messages, ensuring that updated RIDs are delivered without revealing routing information to the server or unauthorized parties. Proper RID propagation ensures uninterrupted message delivery while maintaining cryptographic privacy. Rotation of ephemeral RIDs does not require rekeying of MLS groups, only the transport layer address changes. Peers are notified through MLS application messages
 
 ## 5.6 Initial Contact and Contact Tokens
 Establishing initial communication with a user requires explicit sharing of information. A user must obtain the recipient’s MLS KeyPackage and an initial ephemeral receiver ID through a pre-shared token, link, or other out-of-band mechanism. Possession of this token allows the client to construct a valid MLS commit and begin sending messages, but the server does not learn the identity of the participants or the content of the messages. This ensures that first-contact is a deliberate action controlled by the users themselves and prevents unauthorized clients from initiating conversations or learning about the recipient’s ephemeral routing information. No automatic discovery by username is provided, as this would reveal metadata and compromise privacy.
@@ -143,10 +145,29 @@ The protocol does not aim to protect against traffic analysis by a global passiv
 ## 9.2 Goals
 - Confidentiality against server and network attackers
 - Minimal metadata exposure
-# 10. Comparison to Existing Protocols
-## 10.1 Matrix
+# 10. Federation
+Runway supports federated message delivery across independent servers. Each server acts solely as a relay for encrypted blobs and maintains no persistent MLS state.
+## 10.1 RID format for Federation
+- Receiver IDs are expressed as (human friendly) <rid>@server.org when addressing users on a different server.
+- <rid> is an ephemeral identifier issued by the recipient’s server.
+- server.org specifies the domain of the server hosting the recipient.
+
+## 10.2 Message Delivery Across Servers
+- Clients send MLS ciphertext blobs to <rid>@server.org exactly as they would to a local RID.
+- The sending client wraps the MLS ciphertext in a transport envelope containing only the target RID and domain, no other metadata about the sender or group is exposed.
+- The federated server verifies the RID and queues the blob for delivery to the local recipient.
+- The recipient fetches blobs using their MLS credential to authenticate and decrypt messages.
+## 10.3 Security Guarantees
+- Federated servers have the same level of security as local servers: they cannot determine sender identity, group membership, or conversation type.
+- Forward secrecy and post-compromise security are preserved across servers
+- Even a fully malicious federated server cannot decrypt, forge, or replay MLS messages without being detected by the recipient.
+Servers can only observe timing, size, and recipient RID, all cryptographic guarantees remain intact.
+## 10.4 Initial Contact Across Servers
+Initial contact is the exact same as local initial contact.
+# 11. Comparison to Existing Protocols
+## 11.1 Matrix
 Matrix provides end-to-end encryption via Olm/megOlm, but the server still maintains persistent room state and knows room membership. This is necessary for federation and message history, but exposes metadata about who is in which conversation and when messages are sent. Runway addresses this by making all group state client-owned and opaque to the server, while still supporting secure, one-to-one and group messaging. The server only routes encrypted blobs, never learning group composition or membership changes.
-## 10.2 XMPP
+## 11.2 XMPP
 XMPP is a flexible, federated messaging protocol. While it can support end-to-end encryption through extensions like OMEMO, it typically relies on the server to manage rooms or relay keys. This can leak metadata about conversations, participants, and message timing. Runway eliminates this server-side knowledge entirely: all conversations are MLS groups managed by clients, and the server only sees opaque blobs and ephemeral routing addresses. This provides stronger privacy and uniform cryptographic guarantees for both one-to-one and group chats.  
 # Conclusion
 This protocol defines a secure, privacy-preserving messaging system by composing MLS with strict client-side state ownership and minimal server responsibilities. It achieves strong cryptographic guarantees without relying on trusted infrastructure.
