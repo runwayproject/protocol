@@ -6,7 +6,7 @@ Runway is designed such that:
 - Servers only act as relays and coordinators. They do not store conversation state.
 - Conversation structure is client owned.
 - Servers cannot determine sender identity (via sealed sender), conversation membershsip or conversation type.
-- One-to-one and group messaging are indistinguishable to the server.
+- One-to-one and group messaging are indistinguishable at the cryptographic and protocol level, except for unavoidable metadata such as delivery fan-out
 
 ## 2. Roles and Trust Model
 ### 2.1 Roles
@@ -39,8 +39,7 @@ MLS provides:
 - Forward secrecy: Compromise of current keys does not compromise past messages
 - Post-compromise security: After a compromise, future messages can are secure
 
-The protocol relies on MLS for cryptography and does not implement any additional cryptographic primitives. All security guarantees are derived from MLS.
-
+The protocol relies on MLS for the majority of cryptographic guarantees. The transport layer may use standard public key encryption for sealed sender and routing.
 ## 4. Message Structure
 ### 4.1 Overview
 The protocol does not define any distinction between:
@@ -48,13 +47,15 @@ The protocol does not define any distinction between:
 - Group conversations
 - Channels
 
-All are MLS groups with different numbers of members. The message structure is designed to be opaque to the server, with all relevant information encoded in the MLS ciphertext.
+All are MLS groups with different numbers of members. The message structure is designed to be opaque to the server, with all relevant information encoded in the MLS ciphertext.    
 ### 4.2 Group Identity
 - MLS group IDs must be encrypted inside blobs when transmitted. The server should not be able to determine group membership or type from the group ID.
 
 ## 5. Transport Model
 ### 5.1 Encrypted Blob
 The sole unit of transport is the encrypted blob. It contains the reciever ID and the ciphertext. The server relays blobs to the intended recipient(s) without inspecting their contents.
+
+Recipient IDs are opaque, server-assigned routing identifiers that MAY rotate periodically. The protocol does not assume they are stable or user-meaningful
 
 The server must not be able to determine:
 - Sender identity (via sealed sender)
@@ -69,10 +70,22 @@ The server must not be able to determine:
 ### 5.3 Authentication and Integrity
 - Recipients authenticate senders using MLS signatures. The server cannot forge messages or impersonate senders due to the use of MLS signatures and sealed sender.
 - Sender authenticity must be verified client-side
+### 5.4 Sender Anonymity Model
+Runway supports sealed sender semantics, where the sender’s MLS identity is cryptographically hidden from the server.
+
+The protocol does not guarantee network-layer anonymity. Malicious servers may observe source IP addresses unless clients use anonymizing transports (proxies or VPNs).
+### 5.5 Ephemeral Receiver IDs
+All message delivery occurs via ephemeral receiver IDs (RIDs), which are temporary routing identifiers issued by the server and used in place of persistent user addresses. Clients are responsible for requesting and rotating their RIDs, which may expire or change at any time. RIDs act purely as opaque delivery endpoints: the server routes blobs to the appropriate RID without learning the user’s identity, group membership, or conversation type. Authorized peers receive updated RIDs through MLS application messages or pre-shared tokens, ensuring that message content and recipient identity remain cryptographically hidden from the server. By using ephemeral RIDs, the protocol enforces strong privacy and limits the metadata exposure associated with message routing.
+### 5.6 Initial Contact and Contact Tokens
+Establishing initial communication with a user requires explicit sharing of information. A user must obtain the recipient’s MLS KeyPackage and an initial ephemeral receiver ID through a pre-shared token, link, or other out-of-band mechanism. Possession of this token allows the client to construct a valid MLS commit and begin sending messages, but the server does not learn the identity of the participants or the content of the messages. This ensures that first-contact is a deliberate action controlled by the users themselves and prevents unauthorized clients from initiating conversations or learning about the recipient’s ephemeral routing information. No automatic discovery by username is provided, as this would reveal metadata and compromise privacy.
 
 ## 6. Invites and group join
 ### 6.1 Invites
-Group joins are standard MLS. A group member creates a GroupInfo object, which includes the group's context and a public key used to encrypt secrets. The new member downloads the GroupInfo object (it may be encoded in a link or similar) and constructs an MLS commit to request entry. This commit is sent to the group, advancing it to a new epoch. The server relays the commit to all group members, but cannot determine the new member's identity or the fact that a new member joined.
+Group joins are standard MLS. A group member creates a GroupInfo object, which includes the group's context and a public key used to encrypt secrets. The new member downloads the GroupInfo object (it may be encoded in a link or similar) and constructs an MLS commit to request entry. This commit is sent to the group, advancing it to a new epoch. The server cannot determine the new member’s identity, and cannot cryptographically verify group membership changes, though metadata such as message size and fan-out may leak that a group update occurred.
+
+### 6.2 MLS Group Join via Ephemeral Routing
+To join an existing MLS group, a new member must receive a GroupInfo object securely, typically through a pre-shared invite token or link that includes the initial ephemeral receiver ID. The new member constructs an MLS join commit and submits it to the group, encrypted under the public keys of current group members. All message delivery, including the initial GroupInfo and the join commit, occurs via ephemeral receiver IDs encapsulated in opaque blobs relayed by the server. The server cannot decrypt group content, determine group membership, or identify the new member; it only observes delivery fan-out and timing. Subsequent updates, including receiver ID rotations, are communicated through MLS application messages within the group.
+
 ## 7. State Management
 ### 7.1 Client State
 Clients are responsible for managing all state related to MLS groups, including:
@@ -83,6 +96,7 @@ Clients are responsible for managing all state related to MLS groups, including:
 ## 8. Metadata considerations
 ### 8.1 Unavoidable Metadata
 The server will inevitably have access to certain metadata, such as:
+- IP address
 - Timing of messages
 - Size of messages
 - Recipient IDs (but not group membership or type)
@@ -103,6 +117,7 @@ The protocol is designed to protect against the following adversaries:
 - Malicious servers that attempt to learn information about conversations and participants
 - Network adversaries that attempt to intercept and analyze messages
 - Infrastructure operators that may be compelled to provide access to the server
+The protocol does not aim to protect against traffic analysis by a global passive adversary.
 ### 9.2 Goals
 - Confidentiality against server and network attackers
 - Minimal metadata exposure
