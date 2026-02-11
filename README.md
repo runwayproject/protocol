@@ -3,7 +3,7 @@
 This document specifies a messaging protocol that provides end to end encrypted communication using the Message Layer Security (MLS) protocol. 
 
 Runway is designed such that:
-- Servers only act as relays and coordinators. They do not store state.
+- Servers only act as relays and coordinators. They do not store conversation state.
 - Conversation structure is client owned.
 - Servers cannot determine sender identity (via sealed sender), conversation membershsip or conversation type.
 - One-to-one and group messaging are indistinguishable to the server.
