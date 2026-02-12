@@ -6,7 +6,7 @@ Runway is designed such that:
 - Servers only act as relays and coordinators. They do not store conversation state.
 - Conversation structure is client owned.
 - Servers cannot determine sender identity (via sealed sender), conversation membershsip or conversation type.
-- One-to-one and group messaging are indistinguishable at the cryptographic and protocol level, except for unavoidable metadata such as delivery fan-out
+- One-to-one and group messaging are indistinguishable at the cryptographic and protocol level, except for unavoidable metadata such as delivery fan-out (see 8.1)
 
 # 2. Roles and Trust Model
 ## 2.1 Roles
