@@ -158,7 +158,7 @@ Establishing initial communication with a user requires explicit sharing of info
 - Keyserver handle and domain (if a keyserver is used): allows the adder to fetch a KeyPackage without synchronous interaction. otherwise, it first falls back to the KeyPackage that is included in the contact token, and if that is not present, it falls back to the interactive KeyPackageRequest flow.
 
 The token format is as follows: 
-`runway::v1::<rid>@<relayserver>::<handle>@<keyserver>::<keypackage>`
+`runway::v1::<rid>@<relayserver>:<port>::<handle>@<keyserver>::<keypackage>`
 The keyserver and keypackage components are optional. The adder can choose to include a keyserver handle for asynchronous adds, or include a KeyPackage directly in the token for an asynchronous add without a keyserver.
 
 When a keyserver handle is present, the contact token does not need to embed a KeyPackage directly, as one can be fetched on demand. When no keyserver handle is present, the adder should fallback to the KeyPackage that is included in the contact token, and if that is not present, it falls back to the interactive KeyPackageRequest flow.
