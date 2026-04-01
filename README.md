@@ -244,7 +244,12 @@ Peers maintain a RID set for each contact, containing all known device RIDs for 
 ### 7.4.1 Credential Export 
 Credential export is a manual, user-initiated operation. The client exports the MLS credential private key as an encrypted blob, which the user transfers to the new device through a secure out-of-band channel. The new device imports the credential and generates its own RID. Both devices now share the same MLS identity but have independent routing addresses.
 
-### 7.4.2 Message History
+### 7.4.2 Device Announcement
+When a user adds a new device, existing peers must be notified of the new device's RID so they can update their local RID set. Announcement is performed by an existing device of the same user via an MLS application message delivered to each shared group. The message is signed by the user's MLS credential, allowing peers to verify it originates from the same identity. Upon receiving a valid device announcement, peers append the new RID to their local RID set for that contact.
+
+A device that is removed or decommissioned should announce its removal via the same mechanism, instructing peers to drop the corresponding RID from their local RID set. Peers that receive a removal announcement must also process the corresponding MLS remove commit for that device's leaf node.
+
+### 7.4.3 Message History
 The protocol provides no mechanism for syncing message history to a new device. A device imported with a shared credential receives new messages from the point it comes online but has no access to prior history. Applications may implement encrypted history sync above the protocol layer, but this is explicitly out of scope for the core protocol.
 
 # 8. Metadata considerations
