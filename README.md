@@ -128,6 +128,8 @@ The protocol does not guarantee network-layer anonymity. Malicious servers may o
 ## 5.5 Ephemeral Receiver IDs
 All message delivery occurs via ephemeral receiver IDs (RIDs), which are temporary routing identifiers issued by the server and used in place of persistent user addresses. Clients are responsible for requesting and rotating their RIDs, which may expire or change at any time. RIDs act purely as opaque delivery endpoints: the server routes blobs to the appropriate RID without learning the user’s identity, group membership, or conversation type. Authorized peers receive updated RIDs through MLS application messages or pre-shared tokens, ensuring that message content and recipient identity remain cryptographically hidden from the server. By using ephemeral RIDs, the protocol enforces strong privacy and limits the metadata exposure associated with message routing.
 
+A client may operate multiple devices, each with its own RID. The collection of RIDs belonging to a single logical user is called a RID set. RID sets are a client-side abstraction; the server has no knowledge of which RIDs belong to the same user. Peers maintain a local RID set for each contact and fan out blobs to all RIDs in the set independently.
+
 RIDs are expressed in <rid>@server.org format universally, as defined in 10.1.
 
 RIDs are merely routing handles the server internally uses, not cryptographic identities. They do not carry any inherent information about the user or their conversations, and their rotation is a key mechanism for maintaining privacy and preventing correlation by the server.
@@ -157,8 +159,10 @@ Establishing initial communication with a user requires explicit sharing of info
 - Initial ephemeral RID (required): the recipient's current routing address on their relay server
 - Keyserver handle and domain (if a keyserver is used): allows the adder to fetch a KeyPackage without synchronous interaction. otherwise, it first falls back to the KeyPackage that is included in the contact token, and if that is not present, it falls back to the interactive KeyPackageRequest flow.
 
+The RID component of a contact token may contain multiple RIDs as a comma-separated list, representing all of the issuing client's current devices. The receiving peer stores all listed RIDs as the initial RID set for this contact. If only one RID is present the token is treated as a single-device RID set.
+
 The token format is as follows: 
-`runway::v1::<rid>@<relayserver>:<port>::<handle>@<keyserver>::<keypackage>`
+`runway::v1::<rid>@<relayserver>:<port>[, <rid>@<relayserver>:<port>...]::<handle>@<keyserver>::<keypackage>`
 The keyserver and keypackage components are optional. The adder can choose to include a keyserver handle for asynchronous adds, or include a KeyPackage directly in the token for an asynchronous add without a keyserver.
 
 When a keyserver handle is present, the contact token does not need to embed a KeyPackage directly, as one can be fetched on demand. When no keyserver handle is present, the adder should fallback to the KeyPackage that is included in the contact token, and if that is not present, it falls back to the interactive KeyPackageRequest flow.
@@ -234,7 +238,8 @@ Runway does not define a server-side ordering mechanism. Clients must handle epo
 This is a last-writer-loses model from the perspective of the discarded commit. Members whose commits are discarded are responsible for detecting the conflict and retrying. Clients should implement a randomized backoff before resubmitting to reduce the likelihood of repeated conflicts in high-activity groups.
 
 ## 7.4 Multi-Device
-A user may run multiple clients sharing the same MLS credential by exporting and copying their credential private key to additional devices. From the protocol's perspective, all devices sharing a credential are indistinguishable, they present the same cryptographic identity to the group and require no re-adding or additional group membership changes.
+A user may operate multiple devices simultaneously. Each device is an independent MLS member with its own RID, KeyPackage, and leaf node in any shared group. From the server's perspective, devices are indistinguishable from separate users. The server sees only opaque blobs addressed to RIDs and has no knowledge of device groupings. Device grouping is a client-side abstraction maintained in local state.
+Peers maintain a RID set for each contact, containing all known device RIDs for that contact. When sending a message, the client fans out blobs to all RIDs in the recipient's RID set. The server observes no correlation between these RIDs.
 
 ### 7.4.1 Credential Export 
 Credential export is a manual, user-initiated operation. The client exports the MLS credential private key as an encrypted blob, which the user transfers to the new device through a secure out-of-band channel. The new device imports the credential and generates its own RID. Both devices now share the same MLS identity but have independent routing addresses.
