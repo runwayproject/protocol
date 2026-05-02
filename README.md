@@ -252,6 +252,74 @@ A device that is removed or decommissioned should announce its removal via the s
 ### 7.4.3 Message History
 The protocol provides no mechanism for syncing message history to a new device. A device imported with a shared credential receives new messages from the point it comes online but has no access to prior history. Applications may implement encrypted history sync above the protocol layer, but this is explicitly out of scope for the core protocol.
 
+## 7.5 MLS-Native Group Metadata
+Runway defines MLS extensions for group metadata and permissions. These extensions are carried inside MLS and are fully end-to-end authenticated.
+
+### 7.5.1 Extension Types
+The following extension types are reserved for Runway:
+- RunwayGroupMetadata (GroupContext extension): 0xff01
+- RunwayLeafNickname (LeafNode extension): 0xff02
+
+### 7.5.2 Payload Encoding
+Extension payloads are encoded as CBOR. All keys are strings unless otherwise noted.
+
+RunwayGroupMetadata (GroupContext extension):
+```
+{
+    "v": 1,
+    "group_name": "devel-01",
+    "topic": "Development group for Runway",
+    "admins": [h'010203...'],
+    "nick_overrides": {
+        h'0a0b0c...': "moderated-nick"
+    }
+}
+```
+
+Fields:
+- v (required): schema version. Only 1 is defined.
+- group_name (optional): group display name.
+- topic (optional): group topic/description.
+- admins (required): non-empty list of member identities (byte strings).
+- nick_overrides (optional): map of member identity (byte string) to admin-set nickname.
+
+Member identity is the MLS BasicCredential identity for the member. In Runway, this is a 32-byte value generated at credential creation time and is stable for the lifetime of that credential.
+
+RunwayLeafNickname (LeafNode extension):
+```
+{
+    "v": 1,
+    "nickname": "The Mogger"
+}
+```
+
+Fields:
+- v (required): schema version. Only 1 is defined.
+- nickname (optional): the member's self-chosen nickname.
+
+### 7.5.3 Validation
+Clients MUST apply the following rules when presenting metadata:
+- Strings MUST be UTF-8
+- Leading/trailing whitespace MUST be trimmed
+- Control characters and zero-width characters MUST be rejected for display
+- Max lengths: group_name 64, topic 256, nickname 64.
+
+If a value fails validation, clients MUST ignore that value for display but MUST NOT reject the MLS commit solely due to invalid metadata. This prevents epoch divergence while still enforcing consistent UI behavior.
+
+### 7.5.4 Permissions
+Permissions are enforced by clients using the admin list in the GroupContext extension.
+
+- Only admins may change RunwayGroupMetadata (name, topic, admins, nick_overrides).
+- When applying a commit that updates RunwayGroupMetadata, a client MUST verify that the committer was an admin in the previous epoch. If not, the commit MUST be rejected.
+- The admins list MUST be present and non-empty. Commits that remove the last admin MUST be rejected.
+
+Admin overrides in nick_overrides take display precedence over self nicknames.
+
+### 7.5.5 Display Resolution
+1. admin override (nick_overrides)
+2. self nickname (RunwayLeafNickname)
+3. fallback identifier (e.g., rid@relay or truncated credential identity)
+
 # 8. Metadata considerations
 ## 8.1 Unavoidable Metadata
 The server will inevitably have access to certain metadata, such as:
