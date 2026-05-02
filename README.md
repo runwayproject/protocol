@@ -30,7 +30,7 @@ Servers are assumed to be compromised and malicious. The protocol is designed to
 # 3. Cryptography
 ## 3.1 MLS Usage
 - All conversations, including one-to-one chats, are implemented as MLS groups. This provides a consistent security model and feature set across all conversation types.
-- One on one conversations use 2 member MLS groups
+- One on one conversations use 2 member MLS groups, with strict enforcement (if the other user tries to add a third member, the client will refuse it and quit the conversation. this shouldn't be able to happen in a typical Asphalt client but a modded client could attempt it.)
 - Group conversations use MLS groups with 3 or more members
 - Clients must process MLS commits and epochs according to the MLS specification
 - Groups should not exceed 1000 members. Beyond this size, epoch conflicts, fan-out metadata and other issues may rise significantly. Implementations can enforce a lower or higher limit.
